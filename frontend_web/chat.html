@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>직종별 채팅방</title>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 40px auto; padding: 0 20px; }
+    #messages { border: 1px solid #ddd; height: 300px; overflow-y: auto;
+                padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+    #messages p { margin: 4px 0; }
+    input, select { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+    button { padding: 8px 16px; background: #4f46e5; color: white;
+             border: none; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>💬 직종별 채팅방</h2>
+
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <select id="room">
+      <option value="백엔드">백엔드</option>
+      <option value="프론트엔드">프론트엔드</option>
+      <option value="AI">AI</option>
+      <option value="디자인">디자인</option>
+    </select>
+    <input id="username" placeholder="닉네임" value="가희">
+    <button onclick="connect()">입장</button>
+  </div>
+
+  <div id="room-label" style="color: #888; font-size: 13px; margin-bottom: 8px;"></div>
+  <div id="messages"></div>
+
+  <div style="display: flex; gap: 8px; margin-top: 8px;">
+    <input id="msg" placeholder="메시지 입력" style="flex: 1"
+           onkeydown="if(event.key==='Enter') sendMsg()">
+    <button onclick="sendMsg()">전송</button>
+  </div>
+
+  <script>
+    let ws;
+
+    function connect() {
+      const room = document.getElementById("room").value;
+      const username = document.getElementById("username").value;
+
+      if (ws) ws.close();
+
+      ws = new WebSocket(`ws://127.0.0.1:8000/ws/${room}/${username}`);
+
+      document.getElementById("room-label").textContent = `📌 현재 방: ${room}`;
+      document.getElementById("messages").innerHTML = "";
+
+      ws.onmessage = (event) => {
+        const div = document.getElementById("messages");
+        div.innerHTML += `<p>${event.data}</p>`;
+        div.scrollTop = div.scrollHeight;
+      };
+    }
+
+    function sendMsg() {
+      const input = document.getElementById("msg");
+      if (ws && input.value) {
+        ws.send(input.value);
+        input.value = "";
+      }
+    }
+  </script>
+</body>
+</html>
