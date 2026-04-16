@@ -28,7 +28,9 @@ class _JobListScreenState extends State<JobListScreen> {
     try {
       // HTTP GET 요청 → 에뮬레이터에서 10.0.2.2가 PC의 localhost를 가리킴
       // 실제 폰 연결 시에는 PC의 실제 IP로 바꿔야 함 (예: 192.168.x.x)
-      final response = await http.get(Uri.parse('http://10.0.2.2:8000/jobs'));
+      final response = await http.get(
+        Uri.parse('http://192.168.0.20:8000/jobs'),
+      );
 
       if (response.statusCode == 200) {
         // 응답 성공 시 JSON 파싱해서 jobs 리스트에 저장

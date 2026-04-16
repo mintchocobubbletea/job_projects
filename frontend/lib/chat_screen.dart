@@ -17,7 +17,7 @@ class _ChatScreenState extends State<ChatScreen> {
   // 메시지 입력 컨트롤러
   final TextEditingController _controller = TextEditingController();
   // 닉네임 (나중에 로그인 기능 붙이면 실제 유저명으로 교체)
-  final String username = '가희';
+  final String username = 'maratang';
 
   @override
   void initState() {
@@ -25,7 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // WebSocket 연결 시작
     // 실제 폰 연결 시에는 10.0.2.2 → PC의 실제 IP로 변경
     channel = WebSocketChannel.connect(
-      Uri.parse('ws://10.0.2.2:8000/ws/${widget.room}/$username'),
+      Uri.parse('ws://192.168.0.20:8000/ws/${widget.room}/$username'),
     );
   }
 
