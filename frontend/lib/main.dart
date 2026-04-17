@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'job_list_screen.dart'; // 공고 목록 화면
+import 'login_screen.dart'; // 변경
 
 void main() {
   runApp(const MyApp());
@@ -16,8 +16,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
       ),
-      // 앱 시작 화면을 공고 목록으로 설정
-      home: const JobListScreen(),
+      // 시작 화면을 로그인으로 변경
+      home: const LoginScreen(),
     );
   }
 }

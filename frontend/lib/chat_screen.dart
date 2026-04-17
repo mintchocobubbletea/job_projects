@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+// StatefulWidget에 username 추가
 class ChatScreen extends StatefulWidget {
   final String room;
+  final String username; // 로그인 화면에서 받아온 닉네임
 
-  const ChatScreen({super.key, required this.room});
+  const ChatScreen({super.key, required this.room, required this.username});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -15,7 +17,6 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   // 스크롤 컨트롤러 (새 메시지 오면 자동으로 아래로 스크롤)
   final ScrollController _scrollController = ScrollController();
-  final String username = 'gamza';
   // 메시지 목록 저장 (StreamBuilder 대신 리스트로 관리)
   final List<Map<String, dynamic>> _messages = [];
 
@@ -23,7 +24,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     channel = WebSocketChannel.connect(
-      Uri.parse('ws://192.168.0.20:8000/ws/${widget.room}/$username'),
+      // widget.username으로 StatefulWidget의 값에 접근
+      Uri.parse('ws://192.168.0.20:8000/ws/${widget.room}/${widget.username}'),
     );
 
     // WebSocket에서 메시지 수신 시 리스트에 추가
@@ -32,7 +34,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add({
           'text': message,
           // 내가 보낸 메시지인지 확인 (닉네임으로 구분)
-          'isMe': message.startsWith('$username:'),
+          'isMe': message.startsWith('${widget.username}:'),
         });
       });
       // 새 메시지 오면 자동으로 맨 아래로 스크롤

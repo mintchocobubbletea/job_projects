@@ -4,7 +4,9 @@ import 'package:http/http.dart' as http; // HTTP 요청용
 import 'chat_screen.dart'; // 채팅 화면
 
 class JobListScreen extends StatefulWidget {
-  const JobListScreen({super.key});
+  // 로그인 화면에서 닉네임 받아옴
+  final String username;
+  const JobListScreen({super.key, required this.username});
 
   @override
   State<JobListScreen> createState() => _JobListScreenState();
@@ -83,8 +85,8 @@ class _JobListScreenState extends State<JobListScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => ChatScreen(
-                            // 직종을 룸 이름으로 사용
                             room: job['title'],
+                            username: widget.username, // 닉네임 전달
                           ),
                         ),
                       );
