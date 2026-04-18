@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-// StatefulWidget에 username 추가
 class ChatScreen extends StatefulWidget {
   final String room;
-  final String username; // 로그인 화면에서 받아온 닉네임
+  final String username;
 
   const ChatScreen({super.key, required this.room, required this.username});
 
@@ -15,29 +14,25 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   late WebSocketChannel channel;
   final TextEditingController _controller = TextEditingController();
-  // 스크롤 컨트롤러 (새 메시지 오면 자동으로 아래로 스크롤)
   final ScrollController _scrollController = ScrollController();
-  // 메시지 목록 저장 (StreamBuilder 대신 리스트로 관리)
   final List<Map<String, dynamic>> _messages = [];
 
   @override
   void initState() {
     super.initState();
     channel = WebSocketChannel.connect(
-      // widget.username으로 StatefulWidget의 값에 접근
       Uri.parse('ws://192.168.0.20:8000/ws/${widget.room}/${widget.username}'),
     );
-
-    // WebSocket에서 메시지 수신 시 리스트에 추가
     channel.stream.listen((message) {
       setState(() {
         _messages.add({
           'text': message,
-          // 내가 보낸 메시지인지 확인 (닉네임으로 구분)
           'isMe': message.startsWith('${widget.username}:'),
+          // 시스템 메시지 여부 (입장/퇴장)
+          'isSystem': message.startsWith('🟢') || message.startsWith('🔴'),
         });
       });
-      // 새 메시지 오면 자동으로 맨 아래로 스크롤
+      // 새 메시지 오면 자동 스크롤
       Future.delayed(const Duration(milliseconds: 100), () {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
@@ -68,21 +63,52 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: Text('${widget.room} 채팅방'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: const Color(0xFF3949AB),
+        elevation: 0,
+        // 뒤로가기 버튼 색상
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.room,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const Text(
+              '채팅방',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
       ),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
-            // 메시지 목록 영역
+            // 메시지 목록
             Expanded(
               child: _messages.isEmpty
-                  ? const Center(
-                      child: Text(
-                        '첫 메시지를 보내보세요!',
-                        style: TextStyle(color: Colors.grey),
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 48,
+                            color: Colors.grey.shade300,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '첫 메시지를 보내보세요!',
+                            style: TextStyle(color: Colors.grey.shade400),
+                          ),
+                        ],
                       ),
                     )
                   : ListView.builder(
@@ -92,64 +118,131 @@ class _ChatScreenState extends State<ChatScreen> {
                       itemBuilder: (context, index) {
                         final message = _messages[index];
                         final isMe = message['isMe'] as bool;
-                        final isSystem =
-                            message['text'].startsWith('🟢') ||
-                            message['text'].startsWith('🔴');
+                        final isSystem = message['isSystem'] as bool;
 
-                        // 입장/퇴장 시스템 메시지
+                        // 시스템 메시지 (입장/퇴장)
                         if (isSystem) {
                           return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Center(
-                              child: Text(
-                                message['text'],
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  message['text'],
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ),
                           );
                         }
 
-                        // 내 메시지 / 상대 메시지 말풍선
+                        // 내 메시지 / 상대 메시지
+                        // "닉네임: 메시지" 형태에서 메시지만 추출
+                        final text = message['text'] as String;
+                        final displayText = isMe
+                            ? text.substring('${widget.username}: '.length)
+                            : text;
+
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
-                            // 내 메시지는 오른쪽, 상대 메시지는 왼쪽
                             mainAxisAlignment: isMe
                                 ? MainAxisAlignment.end
                                 : MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Container(
-                                constraints: BoxConstraints(
-                                  // 말풍선 최대 너비 화면의 70%
-                                  maxWidth:
-                                      MediaQuery.of(context).size.width * 0.7,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  // 내 메시지는 인디고, 상대는 회색
-                                  color: isMe
-                                      ? Colors.indigo
-                                      : Colors.grey.shade200,
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: const Radius.circular(16),
-                                    topRight: const Radius.circular(16),
-                                    bottomLeft: Radius.circular(isMe ? 16 : 4),
-                                    bottomRight: Radius.circular(isMe ? 4 : 16),
+                              // 상대방 아바타
+                              if (!isMe) ...[
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: const Color(
+                                    0xFF3949AB,
+                                  ).withValues(alpha: 0.1),
+                                  child: Text(
+                                    // 닉네임 첫 글자
+                                    text.split(':')[0].characters.first,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF3949AB),
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                                child: Text(
-                                  message['text'],
-                                  style: TextStyle(
-                                    color: isMe ? Colors.white : Colors.black87,
-                                    fontSize: 15,
+                                const SizedBox(width: 8),
+                              ],
+                              Column(
+                                crossAxisAlignment: isMe
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
+                                children: [
+                                  // 상대방 닉네임 표시
+                                  if (!isMe)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Text(
+                                        text.split(':')[0],
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ),
+                                  // 말풍선
+                                  Container(
+                                    constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
+                                          0.65,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isMe
+                                          ? const Color(0xFF3949AB)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(16),
+                                        topRight: const Radius.circular(16),
+                                        bottomLeft: Radius.circular(
+                                          isMe ? 16 : 4,
+                                        ),
+                                        bottomRight: Radius.circular(
+                                          isMe ? 4 : 16,
+                                        ),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.05,
+                                          ),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      displayText,
+                                      style: TextStyle(
+                                        color: isMe
+                                            ? Colors.white
+                                            : Colors.black87,
+                                        fontSize: 15,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
@@ -157,13 +250,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       },
                     ),
             ),
-            // 메시지 입력 영역
+            // 메시지 입력창
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.shade200,
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, -2),
                   ),
@@ -178,7 +271,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       decoration: InputDecoration(
                         hintText: '메시지 입력',
                         filled: true,
-                        fillColor: Colors.grey.shade100,
+                        fillColor: const Color(0xFFF5F6FA),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
@@ -193,7 +286,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   CircleAvatar(
-                    backgroundColor: Colors.indigo,
+                    backgroundColor: const Color(0xFF3949AB),
                     child: IconButton(
                       onPressed: sendMessage,
                       icon: const Icon(
