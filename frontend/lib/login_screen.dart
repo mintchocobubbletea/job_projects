@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'job_list_screen.dart';
+import 'main_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -25,9 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (context) => JobListScreen(username: nickname),
-      ),
+      MaterialPageRoute(builder: (context) => MainScreen(username: nickname)),
     );
   }
 
@@ -180,13 +178,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 16),
                           // 개인정보처리방침 링크
                           GestureDetector(
-                            onTap: () {
-                              // 브라우저로 개인정보처리방침 열기
-                              launchUrl(
-                                Uri.parse(
-                                  'https://mintchocobubbletea.github.io/job_projects/privacy_policy.html',
-                                ),
+                            //브라우저로 링크 열기
+                            onTap: () async {
+                              final url = Uri.parse(
+                                'https://mintchocobubbletea.github.io/job_projects/privacy_policy.html',
                               );
+                              if (await canLaunchUrl(url)) {
+                                await launchUrl(
+                                  url,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              }
                             },
                             child: const Text(
                               '개인정보처리방침',
