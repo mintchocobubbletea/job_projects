@@ -52,6 +52,62 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // 신고 다이얼로그
+  void _showReportDialog(BuildContext context, String reportedUser) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String selectedReason = '욕설/비방';
+        return AlertDialog(
+          title: Text('$reportedUser 님 신고'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 신고 사유 선택
+                  DropdownButton<String>(
+                    value: selectedReason,
+                    isExpanded: true,
+                    items: ['욕설/비방', '스팸/광고', '개인정보 유출', '불쾌한 언행', '기타'].map((
+                      reason,
+                    ) {
+                      return DropdownMenuItem(
+                        value: reason,
+                        child: Text(reason),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() => selectedReason = value!);
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // 서버에 신고 전송 ("REPORT:닉네임:사유" 형식)
+                channel.sink.add('REPORT:$reportedUser:$selectedReason');
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('신고'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     channel.sink.close();
@@ -197,50 +253,79 @@ class _ChatScreenState extends State<ChatScreen> {
                                         ),
                                       ),
                                     ),
-                                  // 말풍선
-                                  Container(
-                                    constraints: BoxConstraints(
-                                      maxWidth:
-                                          MediaQuery.of(context).size.width *
-                                          0.65,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isMe
-                                          ? const Color(0xFF3949AB)
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(16),
-                                        topRight: const Radius.circular(16),
-                                        bottomLeft: Radius.circular(
-                                          isMe ? 16 : 4,
+                                  // 말풍선 + 신고 버튼 가로 배치
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      // 내 메시지면 신고 버튼 왼쪽, 상대 메시지면 오른쪽
+                                      // 말풍선
+                                      Container(
+                                        constraints: BoxConstraints(
+                                          maxWidth:
+                                              MediaQuery.of(
+                                                context,
+                                              ).size.width *
+                                              0.65,
                                         ),
-                                        bottomRight: Radius.circular(
-                                          isMe ? 4 : 16,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 10,
                                         ),
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.05,
+                                        decoration: BoxDecoration(
+                                          color: isMe
+                                              ? const Color(0xFF3949AB)
+                                              : Colors.white,
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: const Radius.circular(16),
+                                            topRight: const Radius.circular(16),
+                                            bottomLeft: Radius.circular(
+                                              isMe ? 16 : 4,
+                                            ),
+                                            bottomRight: Radius.circular(
+                                              isMe ? 4 : 16,
+                                            ),
                                           ),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.05,
+                                              ),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      displayText,
-                                      style: TextStyle(
-                                        color: isMe
-                                            ? Colors.white
-                                            : Colors.black87,
-                                        fontSize: 15,
+                                        child: Text(
+                                          displayText,
+                                          style: TextStyle(
+                                            color: isMe
+                                                ? Colors.white
+                                                : Colors.black87,
+                                            fontSize: 15,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                      if (!isMe)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 4,
+                                          ),
+                                          child: GestureDetector(
+                                            onTap: () => _showReportDialog(
+                                              context,
+                                              text.split(':')[0].trim(),
+                                            ),
+                                            child: Icon(
+                                              Icons
+                                                  .local_police_outlined, // 경찰 사이렌 모양
+                                              size: 14,
+                                              color: Colors.grey.shade400,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),

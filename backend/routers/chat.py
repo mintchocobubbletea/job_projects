@@ -4,10 +4,9 @@ from typing import List, Dict
 router = APIRouter()
 
 # ── 욕설 필터링 ────────────────────────────────────────
-# 나중에 단어 추가 가능
 BANNED_WORDS = [
-    "욕설1", "욕설2", "욕설3",  # 실제 욕설로 교체하세요
-    "바보", "멍청이", "꺼져",    # 예시
+    "시발", "썅", "좆까",  # 필터링 욕석
+    "바보", "멍청이", "꺼져",    
 ]
 
 def filter_message(message: str) -> str:

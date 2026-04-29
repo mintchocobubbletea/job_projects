@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'job_list_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -172,6 +173,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
+                              ),
+                            ),
+                          ),
+                          // 입장하기 버튼 아래에 추가
+                          const SizedBox(height: 16),
+                          // 개인정보처리방침 링크
+                          GestureDetector(
+                            onTap: () {
+                              // 브라우저로 개인정보처리방침 열기
+                              launchUrl(
+                                Uri.parse(
+                                  'https://mintchocobubbletea.github.io/job_projects/privacy_policy.html',
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              '개인정보처리방침',
+                              style: TextStyle(
+                                color: Color(0xFF3949AB),
+                                fontSize: 13,
+                                decoration: TextDecoration.underline,
                               ),
                             ),
                           ),
