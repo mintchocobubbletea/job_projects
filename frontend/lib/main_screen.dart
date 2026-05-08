@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'community_screen.dart';
 import 'program_screen.dart';
 import 'recruitment_screen.dart';
-import 'job_training_screen.dart';
+import 'job_search_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final String username;
@@ -23,7 +23,7 @@ class _MainScreenState extends State<MainScreen> {
       CommunityScreen(username: widget.username),
       ProgramScreen(username: widget.username),
       RecruitmentScreen(username: widget.username),
-      JobTrainingScreen(username: widget.username),
+      JobSearchScreen(username: widget.username),
     ];
 
     return Scaffold(
@@ -42,7 +42,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.school_rounded),
-            label: '직업훈련',
+            label: '직업 훈련',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.work_rounded),
@@ -50,7 +50,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.psychology_rounded),
-            label: '직업/훈련',
+            label: '직업 탐색',
           ),
         ],
       ),
