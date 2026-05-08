@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProgramScreen extends StatefulWidget {
   final String username;
@@ -12,17 +13,29 @@ class ProgramScreen extends StatefulWidget {
 }
 
 class _ProgramScreenState extends State<ProgramScreen> {
-  List<Map<String, dynamic>> programs = [];
-  bool isLoading = true;
+  // 현재 선택된 서브탭 (0: 취업역량 강화프로그램, 1: 국민내일배움카드)
+  int _tabIndex = 0;
+
+  // 취업역량 강화프로그램 데이터
+  List<Map<String, dynamic>> empPrograms = [];
+  bool isLoadingEmp = true;
+
+  // 국민내일배움카드 훈련과정 데이터
+  List<Map<String, dynamic>> hrdCourses = [];
+  bool isLoadingHrd = true;
+
   String errorMsg = '';
 
   @override
   void initState() {
     super.initState();
-    fetchPrograms();
+    // 두 API 동시에 호출
+    fetchEmpPrograms();
+    fetchHrdCourses();
   }
 
-  Future<void> fetchPrograms() async {
+  // 취업역량 강화프로그램 API 호출
+  Future<void> fetchEmpPrograms() async {
     try {
       // 어제 날짜부터 조회 (오늘 데이터 없을 수 있어서)
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
@@ -37,8 +50,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
           '?authKey=f3afbffd-8083-49e1-a141-e5f16c86b0f8'
           '&returnType=XML'
           '&startPage=1'
-          '&display=20',
-          //'&pgmStdt=$dateStr',
+          '&display=20'
+          '&pgmStdt=$dateStr',
         ),
       );
 
@@ -46,7 +59,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         final document = XmlDocument.parse(utf8.decode(response.bodyBytes));
         final items = document.findAllElements('empPgmSchdInvite');
         setState(() {
-          programs = items.map((item) {
+          empPrograms = items.map((item) {
             return {
               'orgNm': item.findElements('orgNm').isNotEmpty
                   ? item.findElements('orgNm').first.innerText
@@ -77,14 +90,94 @@ class _ProgramScreenState extends State<ProgramScreen> {
                   : '',
             };
           }).toList();
-          isLoading = false;
+          isLoadingEmp = false;
         });
       }
     } catch (e) {
       setState(() {
         errorMsg = '데이터를 불러오지 못했습니다';
-        isLoading = false;
+        isLoadingEmp = false;
       });
+    }
+  }
+
+  // 국민내일배움카드 훈련과정 API 호출
+  Future<void> fetchHrdCourses() async {
+    try {
+      // 오늘부터 1년치 훈련과정 조회
+      final now = DateTime.now();
+      final start =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+      final end =
+          '${now.year + 1}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+
+      final response = await http.get(
+        Uri.parse(
+          'https://www.work24.go.kr/cm/openApi/call/hr/callOpenApiSvcInfo310L01.do'
+          '?authKey=148a2818-f0e6-4483-a253-a01cec05f3e6'
+          '&returnType=XML'
+          '&outType=1'
+          '&pageNum=1'
+          '&pageSize=20'
+          '&srchTraStDt=$start'
+          '&srchTraEndDt=$end'
+          '&sort=DESC'
+          '&sortCol=2',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final document = XmlDocument.parse(utf8.decode(response.bodyBytes));
+        final items = document.findAllElements('scn_list');
+        setState(() {
+          hrdCourses = items.map((item) {
+            return {
+              'title': item.findElements('title').isNotEmpty
+                  ? item.findElements('title').first.innerText
+                  : '',
+              'subTitle': item.findElements('subTitle').isNotEmpty
+                  ? item.findElements('subTitle').first.innerText
+                  : '',
+              'address': item.findElements('address').isNotEmpty
+                  ? item.findElements('address').first.innerText
+                  : '',
+              'trainTarget': item.findElements('trainTarget').isNotEmpty
+                  ? item.findElements('trainTarget').first.innerText
+                  : '',
+              'traStartDate': item.findElements('traStartDate').isNotEmpty
+                  ? item.findElements('traStartDate').first.innerText
+                  : '',
+              'traEndDate': item.findElements('traEndDate').isNotEmpty
+                  ? item.findElements('traEndDate').first.innerText
+                  : '',
+              'realMan': item.findElements('realMan').isNotEmpty
+                  ? item.findElements('realMan').first.innerText
+                  : '0',
+              'certificate': item.findElements('certificate').isNotEmpty
+                  ? item.findElements('certificate').first.innerText
+                  : '',
+              'titleLink': item.findElements('titleLink').isNotEmpty
+                  ? item.findElements('titleLink').first.innerText
+                  : '',
+            };
+          }).toList();
+          isLoadingHrd = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMsg = '데이터를 불러오지 못했습니다';
+        isLoadingHrd = false;
+      });
+    }
+  }
+
+  // URL 열기
+  Future<void> _launchUrl(String url) async {
+    if (url.isEmpty) return;
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -100,6 +193,18 @@ class _ProgramScreenState extends State<ProgramScreen> {
     return '$ampm $time';
   }
 
+  // 수강비 포맷 (800000 → 800,000원)
+  String formatMoney(String money) {
+    if (money.isEmpty || money == '0') return '무료';
+    try {
+      final amount = int.parse(money);
+      if (amount == 0) return '무료';
+      return '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}원';
+    } catch (e) {
+      return money;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,169 +213,403 @@ class _ProgramScreenState extends State<ProgramScreen> {
         backgroundColor: const Color(0xFF3949AB),
         elevation: 0,
         title: const Text(
-          '취업 프로그램',
+          '직업훈련',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-      ),
-      body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF3949AB)),
-            )
-          : errorMsg.isNotEmpty
-          ? Center(child: Text(errorMsg))
-          : RefreshIndicator(
-              onRefresh: fetchPrograms,
-              color: const Color(0xFF3949AB),
-              child: programs.isEmpty
-                  ? const Center(
-                      child: Text(
-                        '오늘 등록된 프로그램이 없습니다',
-                        style: TextStyle(color: Colors.grey),
+        // 서브탭 (취업역량 강화프로그램 / 국민내일배움카드)
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Row(
+            children: [
+              // 취업역량 강화프로그램 탭
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _tabIndex = 0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: _tabIndex == 0
+                              ? Colors.white
+                              : Colors.transparent,
+                          width: 2,
+                        ),
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: programs.length,
-                      itemBuilder: (context, index) {
-                        final p = programs[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                    ),
+                    child: Text(
+                      '취업 프로그램',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _tabIndex == 0 ? Colors.white : Colors.white60,
+                        fontWeight: _tabIndex == 0
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // 국민내일배움카드 탭
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _tabIndex = 1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: _tabIndex == 1
+                              ? Colors.white
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      '내일배움카드',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _tabIndex == 1 ? Colors.white : Colors.white60,
+                        fontWeight: _tabIndex == 1
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: _tabIndex == 0 ? _buildEmpPrograms() : _buildHrdCourses(),
+    );
+  }
+
+  // 취업역량 강화프로그램 목록 위젯
+  Widget _buildEmpPrograms() {
+    if (isLoadingEmp) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF3949AB)),
+      );
+    }
+    if (empPrograms.isEmpty) {
+      return const Center(
+        child: Text('오늘 등록된 프로그램이 없습니다', style: TextStyle(color: Colors.grey)),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: fetchEmpPrograms,
+      color: const Color(0xFF3949AB),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: empPrograms.length,
+        itemBuilder: (context, index) {
+          final p = empPrograms[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 프로그램 유형 + 기관명
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3949AB).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          p['pgmNm'],
+                          style: const TextStyle(
+                            color: Color(0xFF3949AB),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 프로그램 유형 + 기관명
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFF3949AB,
-                                        ).withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        p['pgmNm'],
-                                        style: const TextStyle(
-                                          color: Color(0xFF3949AB),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        p['orgNm'],
-                                        style: TextStyle(
-                                          color: Colors.grey.shade500,
-                                          fontSize: 12,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                // 세부 프로그램명
-                                Text(
-                                  p['pgmSubNm'],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // 대상자
-                                if (p['pgmTarget'].isNotEmpty)
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(
-                                        Icons.person_outline,
-                                        size: 14,
-                                        color: Colors.grey.shade500,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          p['pgmTarget'],
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                const SizedBox(height: 4),
-                                // 날짜 + 시간
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today_outlined,
-                                      size: 14,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${formatDate(p['pgmStdt'])} '
-                                      '${formatTime(p['openTimeClcd'], p['openTime'])}',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                // 장소
-                                if (p['openPlcCont'].isNotEmpty)
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(
-                                        Icons.location_on_outlined,
-                                        size: 14,
-                                        color: Colors.grey.shade500,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          p['openPlcCont'],
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                              ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          p['orgNm'],
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // 세부 프로그램명
+                  Text(
+                    p['pgmSubNm'],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // 대상자
+                  if (p['pgmTarget'].isNotEmpty)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            p['pgmTarget'],
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
                             ),
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
+                  const SizedBox(height: 4),
+                  // 날짜 + 시간
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${formatDate(p['pgmStdt'])} '
+                        '${formatTime(p['openTimeClcd'], p['openTime'])}',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // 장소
+                  if (p['openPlcCont'].isNotEmpty)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            p['openPlcCont'],
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  // 국민내일배움카드 훈련과정 목록 위젯
+  Widget _buildHrdCourses() {
+    if (isLoadingHrd) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF3949AB)),
+      );
+    }
+    if (hrdCourses.isEmpty) {
+      return const Center(
+        child: Text('훈련과정이 없습니다', style: TextStyle(color: Colors.grey)),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: fetchHrdCourses,
+      color: const Color(0xFF3949AB),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: hrdCourses.length,
+        itemBuilder: (context, index) {
+          final c = hrdCourses[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: InkWell(
+              // 카드 탭하면 훈련과정 상세 페이지로 이동
+              onTap: () => _launchUrl(c['titleLink']),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 훈련과정명
+                    Text(
+                      c['title'],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    // 훈련기관명
+                    Text(
+                      c['subTitle'],
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // 자격증 연계
+                    if (c['certificate'].isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.card_membership_outlined,
+                              size: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              c['certificate'],
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      children: [
+                        // 훈련대상 태그
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF00897B,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            c['trainTarget'],
+                            style: const TextStyle(
+                              color: Color(0xFF00897B),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        // 수강비
+                        Text(
+                          formatMoney(c['realMan']),
+                          style: const TextStyle(
+                            color: Color(0xFF3949AB),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // 훈련기간
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${c['traStartDate']} ~ ${c['traEndDate']}',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // 주소
+                    if (c['address'].isNotEmpty)
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            c['address'],
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

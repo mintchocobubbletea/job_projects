@@ -42,7 +42,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.school_rounded),
-            label: '취업 프로그램',
+            label: '직업훈련',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.work_rounded),

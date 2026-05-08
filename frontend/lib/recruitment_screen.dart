@@ -34,7 +34,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
       final response = await http.get(
         Uri.parse(
           'https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L21.do'
-          '?authKey=YOUR_API_KEY'
+          '?authKey=21b86b70-6370-457d-97d7-500a7b2f170b'
           '&callTp=L'
           '&returnType=XML'
           '&startPage=1'
