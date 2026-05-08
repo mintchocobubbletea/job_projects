@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'env.dart';
 
 class ProgramScreen extends StatefulWidget {
   final String username;
@@ -47,7 +48,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       final response = await http.get(
         Uri.parse(
           'https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo217L01.do'
-          '?authKey=f3afbffd-8083-49e1-a141-e5f16c86b0f8'
+          '?authKey=${Env.empApiKey}'
           '&returnType=XML'
           '&startPage=1'
           '&display=20'
@@ -114,7 +115,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       final response = await http.get(
         Uri.parse(
           'https://www.work24.go.kr/cm/openApi/call/hr/callOpenApiSvcInfo310L01.do'
-          '?authKey=148a2818-f0e6-4483-a253-a01cec05f3e6'
+          '?authKey=${Env.hrdApiKey}'
           '&returnType=XML'
           '&outType=1'
           '&pageNum=1'

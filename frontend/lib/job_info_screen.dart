@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
+import 'env.dart';
 
 class JobInfoScreen extends StatefulWidget {
   const JobInfoScreen({super.key});
@@ -37,7 +38,7 @@ class _JobInfoScreenState extends State<JobInfoScreen> {
 
     try {
       final queryParams = {
-        'authKey': '40ead606-39be-4a5e-af2f-56f4eb8a2da8',
+        'authKey': Env.jobApiKey,
         'returnType': 'XML',
         'target': 'JOBCD',
         if (_keyword.isNotEmpty) 'jobNm': _keyword,

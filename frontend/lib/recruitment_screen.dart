@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'env.dart';
 
 class RecruitmentScreen extends StatefulWidget {
   final String username;
@@ -34,7 +35,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
       final response = await http.get(
         Uri.parse(
           'https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L21.do'
-          '?authKey=21b86b70-6370-457d-97d7-500a7b2f170b'
+          '?authKey=${Env.recruitApiKey}'
           '&callTp=L'
           '&returnType=XML'
           '&startPage=1'
