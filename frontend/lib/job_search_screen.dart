@@ -16,7 +16,20 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
   // 현재 선택된 서브탭 (0: 직업탐색, 1: AI 매칭)
   int _tabIndex = 0;
 
-  // 직업정보 전체 목록
+  // 직업 카테고리 필터 목록
+  final List<Map<String, dynamic>> _categories = [
+    {'name': '전체', 'color': const Color(0xFF3949AB)},
+    {'name': 'IT', 'color': const Color(0xFF3949AB)},
+    {'name': '의료', 'color': const Color(0xFF00897B)},
+    {'name': '교육', 'color': const Color(0xFF8E24AA)},
+    {'name': '경영', 'color': const Color(0xFFE53935)},
+    {'name': '예술', 'color': const Color(0xFFF57C00)},
+    {'name': '농업', 'color': const Color(0xFF43A047)},
+  ];
+  // 현재 선택된 카테고리
+  String _selectedCategory = '전체';
+
+  // 직업 전체 목록
   List<Map<String, dynamic>> jobs = [];
   // 검색 필터링된 목록
   List<Map<String, dynamic>> filteredJobs = [];
@@ -76,18 +89,64 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
     }
   }
 
-  // 직업명 또는 분류명으로 검색
+  // 직업명 또는 분류명으로 검색 + 카테고리 필터 동시 적용
   void _search(String query) {
     setState(() {
-      if (query.isEmpty) {
-        filteredJobs = jobs;
-      } else {
-        filteredJobs = jobs.where((job) {
-          return job['jobNm'].contains(query) ||
-              job['jobClcdNM'].contains(query);
-        }).toList();
-      }
+      filteredJobs = jobs.where((job) {
+        // 카테고리 필터
+        final categoryMatch =
+            _selectedCategory == '전체' ||
+            job['jobClcdNM'].contains(_selectedCategory);
+        // 검색어 필터
+        final searchMatch =
+            query.isEmpty ||
+            job['jobNm'].contains(query) ||
+            job['jobClcdNM'].contains(query);
+        return categoryMatch && searchMatch;
+      }).toList();
     });
+  }
+
+  // 카테고리 선택
+  void _selectCategory(String category) {
+    setState(() {
+      _selectedCategory = category;
+      _search(_searchController.text);
+    });
+  }
+
+  // 직업 분류에 따른 색상 반환
+  Color _getJobColor(String category) {
+    if (category.contains('정보') ||
+        category.contains('IT') ||
+        category.contains('컴퓨터') ||
+        category.contains('통신')) {
+      return const Color(0xFF3949AB);
+    }
+    if (category.contains('보건') ||
+        category.contains('의료') ||
+        category.contains('간호')) {
+      return const Color(0xFF00897B);
+    }
+    if (category.contains('교육') || category.contains('연구')) {
+      return const Color(0xFF8E24AA);
+    }
+    if (category.contains('경영') ||
+        category.contains('금융') ||
+        category.contains('회계')) {
+      return const Color(0xFFE53935);
+    }
+    if (category.contains('예술') ||
+        category.contains('디자인') ||
+        category.contains('문화')) {
+      return const Color(0xFFF57C00);
+    }
+    if (category.contains('농') ||
+        category.contains('어') ||
+        category.contains('임')) {
+      return const Color(0xFF43A047);
+    }
+    return const Color(0xFF546E7A);
   }
 
   // AI 매칭 함수 (API 키 발급 후 구현)
@@ -97,9 +156,7 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
       isAiLoading = true;
       aiResult = '';
     });
-
     // TODO: Claude API 연동 후 여기에 구현
-    // 임시로 로딩 후 안내 메시지 표시
     await Future.delayed(const Duration(seconds: 1));
     setState(() {
       isAiLoading = false;
@@ -125,76 +182,48 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
           '직업탐색',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        // 서브탭 (직업탐색 / AI 매칭)
+        // 서브탭
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Row(
             children: [
-              // 직업탐색 탭
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _tabIndex = 0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: _tabIndex == 0
-                              ? Colors.white
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      '직업 검색',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _tabIndex == 0 ? Colors.white : Colors.white60,
-                        fontWeight: _tabIndex == 0
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // AI 매칭 탭
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _tabIndex = 1),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: _tabIndex == 1
-                              ? Colors.white
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      'AI 직업 추천',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _tabIndex == 1 ? Colors.white : Colors.white60,
-                        fontWeight: _tabIndex == 1
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              _buildSubTab('직업 검색', 0),
+              _buildSubTab('🤖 AI 직업 추천', 1),
             ],
           ),
         ),
       ),
       body: _tabIndex == 0 ? _buildJobSearch() : _buildAiMatching(),
+    );
+  }
+
+  // 서브탭 위젯
+  Widget _buildSubTab(String title, int index) {
+    final isSelected = _tabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _tabIndex = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected ? Colors.white : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white60,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -207,32 +236,79 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
     }
     return Column(
       children: [
-        // 검색창
+        // 검색창 + 카테고리 필터
         Container(
           color: const Color(0xFF3949AB),
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: TextField(
-            controller: _searchController,
-            onChanged: _search,
-            decoration: InputDecoration(
-              hintText: '직업명 검색 (예: 개발자, 간호사)',
-              filled: true,
-              fillColor: Colors.white,
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Column(
+            children: [
+              // 검색창
+              TextField(
+                controller: _searchController,
+                onChanged: _search,
+                decoration: InputDecoration(
+                  hintText: '직업명 검색 (예: 개발자, 간호사)',
+                  filled: true,
+                  fillColor: Colors.white,
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+              const SizedBox(height: 10),
+              // 카테고리 필터 가로 스크롤
+              SizedBox(
+                height: 32,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final cat = _categories[index];
+                    final isSelected = _selectedCategory == cat['name'];
+                    return GestureDetector(
+                      onTap: () => _selectCategory(cat['name']),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          // 선택된 카테고리는 흰색, 나머지는 반투명
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          cat['name'],
+                          style: TextStyle(
+                            color: isSelected
+                                ? const Color(0xFF3949AB)
+                                : Colors.white,
+                            fontSize: 12,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
+            ],
           ),
         ),
         // 검색 결과 수
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
           child: Row(
             children: [
               Text(
@@ -259,14 +335,19 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
                     itemCount: filteredJobs.length,
                     itemBuilder: (context, index) {
                       final job = filteredJobs[index];
+                      final color = _getJobColor(job['jobClcdNM']);
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
+                          // 스타일 C처럼 왼쪽 컬러 보더
+                          border: Border(
+                            left: BorderSide(color: color, width: 3),
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
+                              color: Colors.black.withValues(alpha: 0.04),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -275,20 +356,18 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
-                            vertical: 8,
+                            vertical: 6,
                           ),
                           leading: Container(
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF3949AB,
-                              ).withValues(alpha: 0.1),
+                              color: color.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.work_outline_rounded,
-                              color: Color(0xFF3949AB),
+                              color: color,
                               size: 20,
                             ),
                           ),
@@ -300,14 +379,29 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
                               fontSize: 15,
                             ),
                           ),
-                          // 직업 분류명
-                          subtitle: Text(
-                            job['jobClcdNM'],
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 12,
+                          // 직업 분류 태그
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                job['jobClcdNM'],
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
                           ),
+                          isThreeLine: false,
                         ),
                       );
                     },
@@ -330,11 +424,7 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF3949AB), Color(0xFF1E88E5)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: const Color(0xFF3949AB),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Column(
@@ -363,12 +453,12 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // 입력창
           const Text(
             '관심사 / 강점 입력',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 8),
+          // 입력창
           TextField(
             controller: _aiInputController,
             maxLines: 4,
@@ -424,7 +514,7 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
               ),
             ),
           ),
-          // AI 결과 표시
+          // AI 결과
           if (aiResult.isNotEmpty) ...[
             const SizedBox(height: 20),
             Container(
@@ -433,6 +523,9 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
+                border: const Border(
+                  left: BorderSide(color: Color(0xFF3949AB), width: 3),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
@@ -463,7 +556,6 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // AI 결과 텍스트
                   Text(
                     aiResult,
                     style: const TextStyle(fontSize: 15, height: 1.6),

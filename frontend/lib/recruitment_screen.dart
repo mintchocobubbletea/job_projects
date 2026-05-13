@@ -29,9 +29,9 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
     fetchRecruitments();
   }
 
+  // 고용24 공채속보 API 호출
   Future<void> fetchRecruitments() async {
     try {
-      // 고용24 공채속보 API 호출
       final response = await http.get(
         Uri.parse(
           'https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L21.do'
@@ -46,7 +46,6 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
       );
 
       if (response.statusCode == 200) {
-        // XML 파싱
         final document = XmlDocument.parse(utf8.decode(response.bodyBytes));
         final items = document.findAllElements('dhsOpenEmpInfo');
         setState(() {
@@ -105,7 +104,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
     });
   }
 
-  // 날짜 포맷 변환 (20260506 → 2026.05.06)
+  // 날짜 포맷 (20260506 → 2026.05.06)
   String formatDate(String date) {
     if (date.length != 8) return date;
     return '${date.substring(0, 4)}.${date.substring(4, 6)}.${date.substring(6, 8)}';
@@ -138,7 +137,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
     }
   }
 
-  // 태그 위젯 (기업구분, 고용형태 등 작은 뱃지)
+  // 태그 위젯
   Widget _buildTag(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -230,22 +229,28 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                                 margin: const EdgeInsets.only(bottom: 12),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(12),
+                                  // 스타일 C 왼쪽 컬러 보더
+                                  border: Border(
+                                    left: BorderSide(
+                                      color: companyColor,
+                                      width: 3,
+                                    ),
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withValues(
-                                        alpha: 0.05,
+                                        alpha: 0.04,
                                       ),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
                                 child: InkWell(
-                                  // 카드 탭하면 채용 사이트로 이동
                                   onTap: () =>
                                       _launchUrl(r['empWantedHomepgDetail']),
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(12),
                                   child: Padding(
                                     padding: const EdgeInsets.all(16),
                                     child: Column(
@@ -256,25 +261,24 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                                           children: [
                                             // 회사 로고
                                             Container(
-                                              width: 48,
-                                              height: 48,
+                                              width: 44,
+                                              height: 44,
                                               decoration: BoxDecoration(
                                                 color: companyColor.withValues(
                                                   alpha: 0.1,
                                                 ),
                                                 borderRadius:
-                                                    BorderRadius.circular(12),
+                                                    BorderRadius.circular(10),
                                               ),
                                               child: r['regLogImgNm'].isNotEmpty
                                                   ? ClipRRect(
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                            12,
+                                                            10,
                                                           ),
                                                       child: Image.network(
                                                         r['regLogImgNm'],
                                                         fit: BoxFit.cover,
-                                                        // 로고 로드 실패 시 기본 아이콘
                                                         errorBuilder:
                                                             (
                                                               _,
@@ -325,8 +329,8 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 12),
-                                        // 태그 행 (기업구분, 고용형태, 마감일)
+                                        const SizedBox(height: 10),
+                                        // 태그 행
                                         Row(
                                           children: [
                                             if (r['coClcdNm'].isNotEmpty)
@@ -338,7 +342,6 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                                               const SizedBox(width: 6),
                                             if (r['empWantedTypeNm'].isNotEmpty)
                                               _buildTag(
-                                                // 고용형태 여러 개면 첫 번째만 표시
                                                 r['empWantedTypeNm']
                                                     .split('|')
                                                     .first,

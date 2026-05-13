@@ -30,7 +30,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
   @override
   void initState() {
     super.initState();
-    // 두 API 동시에 호출
+    // 두 API 동시 호출
     fetchEmpPrograms();
     fetchHrdCourses();
   }
@@ -38,7 +38,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
   // 취업역량 강화프로그램 API 호출
   Future<void> fetchEmpPrograms() async {
     try {
-      // 어제 날짜부터 조회 (오늘 데이터 없을 수 있어서)
+      // 어제 날짜부터 조회
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
       final dateStr =
           '${yesterday.year}'
@@ -105,7 +105,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
   // 국민내일배움카드 훈련과정 API 호출
   Future<void> fetchHrdCourses() async {
     try {
-      // 오늘부터 1년치 훈련과정 조회
       final now = DateTime.now();
       final start =
           '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
@@ -206,6 +205,36 @@ class _ProgramScreenState extends State<ProgramScreen> {
     }
   }
 
+  // 서브탭 위젯
+  Widget _buildSubTab(String title, int index) {
+    final isSelected = _tabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _tabIndex = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected ? Colors.white : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white60,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -217,72 +246,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
           '직업훈련',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        // 서브탭 (취업역량 강화프로그램 / 국민내일배움카드)
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Row(
-            children: [
-              // 취업역량 강화프로그램 탭
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _tabIndex = 0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: _tabIndex == 0
-                              ? Colors.white
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      '취업 프로그램',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _tabIndex == 0 ? Colors.white : Colors.white60,
-                        fontWeight: _tabIndex == 0
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // 국민내일배움카드 탭
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _tabIndex = 1),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: _tabIndex == 1
-                              ? Colors.white
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    child: Text(
-                      '내일배움카드',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _tabIndex == 1 ? Colors.white : Colors.white60,
-                        fontWeight: _tabIndex == 1
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            children: [_buildSubTab('취업 프로그램', 0), _buildSubTab('내일배움카드', 1)],
           ),
         ),
       ),
@@ -290,7 +257,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
     );
   }
 
-  // 취업역량 강화프로그램 목록 위젯
+  // 취업역량 강화프로그램 목록
   Widget _buildEmpPrograms() {
     if (isLoadingEmp) {
       return const Center(
@@ -314,12 +281,16 @@ class _ProgramScreenState extends State<ProgramScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
+              // 왼쪽 컬러 보더
+              border: const Border(
+                left: BorderSide(color: Color(0xFF3949AB), width: 3),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -344,7 +315,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                           p['pgmNm'],
                           style: const TextStyle(
                             color: Color(0xFF3949AB),
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -446,7 +417,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
     );
   }
 
-  // 국민내일배움카드 훈련과정 목록 위젯
+  // 국민내일배움카드 훈련과정 목록
   Widget _buildHrdCourses() {
     if (isLoadingHrd) {
       return const Center(
@@ -470,19 +441,22 @@ class _ProgramScreenState extends State<ProgramScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
+              // 내일배움카드는 초록 왼쪽 보더
+              border: const Border(
+                left: BorderSide(color: Color(0xFF00897B), width: 3),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: InkWell(
-              // 카드 탭하면 훈련과정 상세 페이지로 이동
               onTap: () => _launchUrl(c['titleLink']),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -498,7 +472,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     // 훈련기관명
                     Text(
                       c['subTitle'],

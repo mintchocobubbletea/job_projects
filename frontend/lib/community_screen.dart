@@ -66,70 +66,129 @@ class CommunityScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: rooms.length,
-        itemBuilder: (context, index) {
-          final room = rooms[index];
-          final color = room['color'] as Color;
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+      body: Column(
+        children: [
+          // 상단 안내 배너
+          Container(
+            color: const Color(0xFF3949AB),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.white70, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '관심 있는 주제의 채팅방에서 취업 정보를 나눠요',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
-              leading: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(room['icon'] as IconData, color: color, size: 24),
-              ),
-              title: Text(
-                room['title'],
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  room['description'],
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                ),
-              ),
-              trailing: Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: Colors.grey.shade400,
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ChatScreen(room: room['title'], username: username),
+          ),
+          // 채팅방 목록
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: rooms.length,
+              itemBuilder: (context, index) {
+                final room = rooms[index];
+                final color = room['color'] as Color;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    // 스타일 C 왼쪽 컬러 보더
+                    border: Border(left: BorderSide(color: color, width: 3)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    leading: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        room['icon'] as IconData,
+                        color: color,
+                        size: 24,
+                      ),
+                    ),
+                    title: Text(
+                      room['title'],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        room['description'],
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '입장',
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatScreen(
+                            room: room['title'],
+                            username: username,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
               },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

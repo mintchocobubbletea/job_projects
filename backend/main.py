@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from backend.models.database import engine, Base
-from backend.routers import jobs, chat
+from backend.routers import jobs, chat, auth
 
 app = FastAPI()
 
@@ -13,7 +13,7 @@ async def startup():
 # 라우터 등록
 app.include_router(jobs.router)   # /jobs 엔드포인트
 app.include_router(chat.router)   # /ws 엔드포인트
-
+app.include_router(auth.router)   # /auth 엔드포인트
 @app.get("/")
 def root():
     return {"message": "구직 커뮤니티 API 작동 중!"}
