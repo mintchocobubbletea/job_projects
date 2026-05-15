@@ -166,14 +166,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF3949AB),
-        elevation: 0,
-        title: const Text(
-          '채용 정보',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
+
       body: isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF3949AB)),

@@ -242,10 +242,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF3949AB),
         elevation: 0,
-        title: const Text(
-          '직업훈련',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        toolbarHeight: 0, // 타이틀 영역 숨김
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Row(

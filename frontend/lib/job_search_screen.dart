@@ -178,18 +178,11 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF3949AB),
         elevation: 0,
-        title: const Text(
-          '직업탐색',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        // 서브탭
+        toolbarHeight: 0, // 타이틀 영역 숨김
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Row(
-            children: [
-              _buildSubTab('직업 검색', 0),
-              _buildSubTab('🤖 AI 직업 추천', 1),
-            ],
+            children: [_buildSubTab('직업 검색', 0), _buildSubTab('AI 직업 추천', 1)],
           ),
         ),
       ),
