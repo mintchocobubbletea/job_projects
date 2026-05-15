@@ -232,7 +232,7 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
         // 검색창 + 카테고리 필터
         Container(
           color: const Color(0xFF3949AB),
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: Column(
             children: [
               // 검색창
