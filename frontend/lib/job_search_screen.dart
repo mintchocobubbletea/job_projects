@@ -149,19 +149,83 @@ class _JobSearchScreenState extends State<JobSearchScreen> {
     return const Color(0xFF546E7A);
   }
 
-  // AI 매칭 함수 (API 키 발급 후 구현)
+  // AI 매칭
   Future<void> _matchWithAI() async {
     if (_aiInputController.text.isEmpty) return;
     setState(() {
       isAiLoading = true;
       aiResult = '';
     });
-    // TODO: Claude API 연동 후 여기에 구현
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      isAiLoading = false;
-      aiResult = 'AI API 연동 준비 중이에요. 곧 서비스될 예정이에요!';
-    });
+
+    try {
+      // Claude API 호출
+      final response = await http.post(
+        Uri.parse('https://api.anthropic.com/v1/messages'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': Env.claudeApiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: jsonEncode({
+          'model': 'claude-sonnet-4-5',
+          'max_tokens': 1000,
+          'messages': [
+            {
+              'role': 'user',
+              'content':
+                  '''
+당신은 취업 전문 AI 상담사입니다.
+사용자의 관심사와 강점을 분석해서 적합한 직업을 3가지 추천해주세요.
+
+사용자 입력: ${_aiInputController.text}
+
+다음 형식으로 답변해주세요:
+1. [직업명]
+- 추천 이유: (2-3문장)
+- 필요 역량: (핵심 스킬 3가지)
+
+2. [직업명]
+- 추천 이유: (2-3문장)
+- 필요 역량: (핵심 스킬 3가지)
+
+3. [직업명]
+- 추천 이유: (2-3문장)
+- 필요 역량: (핵심 스킬 3가지)
+
+한국어로 답변해주세요.
+            ''',
+            },
+          ],
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        // Claude API 응답에서 텍스트 추출
+        final text = data['content'][0]['text'];
+        setState(() {
+          aiResult = text;
+          isAiLoading = false;
+        });
+      } else {
+        // 에러 내용 출력해서 원인 파악
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        setState(() {
+          aiResult = '오류 ${response.statusCode}: ${errorData.toString()}';
+          isAiLoading = false;
+        });
+        /*else {
+        setState(() {
+          aiResult = 'AI 응답에 실패했습니다. 다시 시도해주세요.';
+          isAiLoading = false;
+        });*/
+      }
+    } catch (e) {
+      setState(() {
+        aiResult = '서버에 연결할 수 없습니다.';
+        isAiLoading = false;
+      });
+    }
   }
 
   @override
