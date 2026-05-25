@@ -104,6 +104,118 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     super.dispose();
   }
 
+  // 신고 다이얼로그 표시
+  void _showReportDialog({
+    required String reportType,
+    required int targetId,
+    required String targetAuthor,
+  }) {
+    String selectedReason = '욕설/비방';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(reportType == 'post' ? '게시글 신고' : '댓글 신고'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '작성자: $targetAuthor',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '신고 사유',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              // 신고 사유 선택 드롭다운
+              DropdownButton<String>(
+                value: selectedReason,
+                isExpanded: true,
+                items: ['욕설/비방', '스팸/광고', '개인정보 유출', '불쾌한 언행', '허위 정보', '기타']
+                    .map(
+                      (reason) =>
+                          DropdownMenuItem(value: reason, child: Text(reason)),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  setDialogState(() => selectedReason = value!);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _submitReport(
+                  reportType: reportType,
+                  targetId: targetId,
+                  reason: selectedReason,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('신고'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 신고 API 호출
+  Future<void> _submitReport({
+    required String reportType,
+    required int targetId,
+    required String reason,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/reports'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'report_type': reportType,
+          'target_id': targetId,
+          'reason': reason,
+          'reporter': widget.username,
+        }),
+      );
+
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.statusCode == 200
+                  ? '신고가 접수됐습니다'
+                  : data['detail'] ?? '신고에 실패했습니다',
+            ),
+            backgroundColor: response.statusCode == 200
+                ? Colors.green
+                : Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('서버에 연결할 수 없습니다')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,13 +264,38 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 제목
-                            Text(
-                              post?['title'] ?? '',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
+                            // 제목 + 신고 버튼
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 제목
+                                Expanded(
+                                  child: Text(
+                                    post?['title'] ?? '',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                                // 신고 버튼 (내 게시글이 아닐 때만 표시)
+                                if (post?['author'] != widget.username)
+                                  GestureDetector(
+                                    onTap: () => _showReportDialog(
+                                      reportType: 'post',
+                                      targetId: widget.postId,
+                                      targetAuthor: post?['author'] ?? '',
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(left: 8),
+                                      child: Icon(
+                                        Icons.flag_outlined,
+                                        size: 18,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             // 작성자 + 날짜 + 조회수
@@ -268,6 +405,22 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                       fontSize: 11,
                                     ),
                                   ),
+                                  // 내 댓글이 아닐 때만 신고 버튼 표시
+                                  if (!isMe) ...[
+                                    const SizedBox(width: 4),
+                                    GestureDetector(
+                                      onTap: () => _showReportDialog(
+                                        reportType: 'comment',
+                                        targetId: comment['id'] ?? 0,
+                                        targetAuthor: comment['author'],
+                                      ),
+                                      child: Icon(
+                                        Icons.flag_outlined,
+                                        size: 14,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                               const SizedBox(height: 6),

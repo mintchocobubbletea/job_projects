@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from backend.models.database import engine, Base
-from backend.routers import jobs, chat, auth, posts 
+from backend.routers import jobs, chat, auth, posts, reports 
 
 app = FastAPI()
 
@@ -12,7 +12,8 @@ async def startup():
 app.include_router(jobs.router)
 app.include_router(chat.router)
 app.include_router(auth.router)
-app.include_router(posts.router) 
+app.include_router(posts.router)
+app.include_router(reports.router) 
 
 @app.get("/")
 def root():

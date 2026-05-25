@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'post_list_screen.dart';
-import 'account_screen.dart';
 
 class BoardScreen extends StatelessWidget {
   final String username;
