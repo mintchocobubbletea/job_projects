@@ -1,11 +1,21 @@
+// board_screen.dart
+// 커뮤니티 게시판 목록 화면
+// 취업 관련 주제별 게시판 목록을 표시
+// 게시판 탭 시 해당 게시판의 게시글 목록 화면으로 이동
+
 import 'package:flutter/material.dart';
 import 'post_list_screen.dart';
 
 class BoardScreen extends StatelessWidget {
+  // 로그인한 사용자의 닉네임
   final String username;
   const BoardScreen({super.key, required this.username});
 
-  // 게시판 목록
+  // 게시판 목록 데이터
+  // category: 게시판 카테고리명 (백엔드 API 파라미터로 사용)
+  // description: 게시판 설명
+  // icon: 게시판 아이콘
+  // color: 게시판 테마 색상 (카드 왼쪽 보더, 아이콘 배경에 사용)
   static const List<Map<String, dynamic>> boards = [
     {
       'category': '면접 꿀팁',
@@ -43,7 +53,6 @@ class BoardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
-
       body: Column(
         children: [
           // 상단 안내 배너
@@ -87,6 +96,7 @@ class BoardScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
+                    // 게시판 테마 색상으로 왼쪽 보더 표시
                     border: Border(left: BorderSide(color: color, width: 3)),
                     boxShadow: [
                       BoxShadow(
@@ -101,6 +111,7 @@ class BoardScreen extends StatelessWidget {
                       horizontal: 16,
                       vertical: 10,
                     ),
+                    // 게시판 아이콘
                     leading: Container(
                       width: 48,
                       height: 48,
@@ -114,6 +125,7 @@ class BoardScreen extends StatelessWidget {
                         size: 24,
                       ),
                     ),
+                    // 게시판 이름
                     title: Text(
                       board['category'],
                       style: const TextStyle(
@@ -121,6 +133,7 @@ class BoardScreen extends StatelessWidget {
                         fontSize: 16,
                       ),
                     ),
+                    // 게시판 설명
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
@@ -131,6 +144,7 @@ class BoardScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // 입장 버튼
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -149,8 +163,8 @@ class BoardScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // 게시판 탭 시 게시글 목록 화면으로 이동
                     onTap: () {
-                      // 게시글 목록 화면으로 이동
                       Navigator.push(
                         context,
                         MaterialPageRoute(

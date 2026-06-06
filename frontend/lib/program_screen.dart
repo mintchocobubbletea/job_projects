@@ -1,3 +1,9 @@
+// program_screen.dart
+// 직업훈련 화면
+// 두 가지 탭으로 구성:
+// 1. 취업 프로그램: 고용24 취업역량 강화프로그램 API로 프로그램 목록 조회
+// 2. 내일배움카드: 고용24 국민내일배움카드 훈련과정 API로 훈련과정 목록 조회
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'env.dart';
 
 class ProgramScreen extends StatefulWidget {
+  // 로그인한 사용자의 닉네임
   final String username;
   const ProgramScreen({super.key, required this.username});
 
@@ -14,15 +21,17 @@ class ProgramScreen extends StatefulWidget {
 }
 
 class _ProgramScreenState extends State<ProgramScreen> {
-  // 현재 선택된 서브탭 (0: 취업역량 강화프로그램, 1: 국민내일배움카드)
+  // 현재 선택된 서브탭 (0: 취업 프로그램, 1: 내일배움카드)
   int _tabIndex = 0;
 
-  // 취업역량 강화프로그램 데이터
+  // 취업역량 강화프로그램 데이터 목록
   List<Map<String, dynamic>> empPrograms = [];
+  // 취업역량 강화프로그램 로딩 여부
   bool isLoadingEmp = true;
 
-  // 국민내일배움카드 훈련과정 데이터
+  // 국민내일배움카드 훈련과정 데이터 목록
   List<Map<String, dynamic>> hrdCourses = [];
+  // 국민내일배움카드 로딩 여부
   bool isLoadingHrd = true;
 
   String errorMsg = '';
@@ -30,15 +39,16 @@ class _ProgramScreenState extends State<ProgramScreen> {
   @override
   void initState() {
     super.initState();
-    // 두 API 동시 호출
+    // 화면 진입 시 두 API 동시 호출 (병렬 처리)
     fetchEmpPrograms();
     fetchHrdCourses();
   }
 
-  // 취업역량 강화프로그램 API 호출
+  // 고용24 취업역량 강화프로그램 API 호출
+  // 어제 날짜부터 조회 (오늘 데이터가 없을 수 있어서 어제부터 조회)
   Future<void> fetchEmpPrograms() async {
     try {
-      // 어제 날짜부터 조회
+      // 어제 날짜 계산 (YYYYMMDD 형식)
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
       final dateStr =
           '${yesterday.year}'
@@ -52,11 +62,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
           '&returnType=XML'
           '&startPage=1'
           '&display=20'
-          '&pgmStdt=$dateStr',
+          '&pgmStdt=$dateStr', // 과정시작일 (미입력 시 오늘 날짜로 조회)
         ),
       );
 
       if (response.statusCode == 200) {
+        // XML 응답 파싱
         final document = XmlDocument.parse(utf8.decode(response.bodyBytes));
         final items = document.findAllElements('empPgmSchdInvite');
         setState(() {
@@ -102,31 +113,39 @@ class _ProgramScreenState extends State<ProgramScreen> {
     }
   }
 
-  // 국민내일배움카드 훈련과정 API 호출
+  // 고용24 국민내일배움카드 훈련과정 API 호출
+  // 오늘부터 1년치 훈련과정 조회
   Future<void> fetchHrdCourses() async {
     try {
       final now = DateTime.now();
+      // 오늘 날짜 (훈련 시작일 기준)
       final start =
-          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+          '${now.year}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}';
+      // 1년 후 날짜 (훈련 종료일 기준)
       final end =
-          '${now.year + 1}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+          '${now.year + 1}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}';
 
       final response = await http.get(
         Uri.parse(
           'https://www.work24.go.kr/cm/openApi/call/hr/callOpenApiSvcInfo310L01.do'
           '?authKey=${Env.hrdApiKey}'
           '&returnType=XML'
-          '&outType=1'
+          '&outType=1' // 출력 타입 (1: 목록)
           '&pageNum=1'
           '&pageSize=20'
-          '&srchTraStDt=$start'
-          '&srchTraEndDt=$end'
-          '&sort=DESC'
-          '&sortCol=2',
+          '&srchTraStDt=$start' // 훈련 시작일
+          '&srchTraEndDt=$end' // 훈련 종료일
+          '&sort=DESC' // 내림차순 정렬
+          '&sortCol=2', // 정렬 기준 컬럼
         ),
       );
 
       if (response.statusCode == 200) {
+        // XML 응답 파싱
         final document = XmlDocument.parse(utf8.decode(response.bodyBytes));
         final items = document.findAllElements('scn_list');
         setState(() {
@@ -156,6 +175,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
               'certificate': item.findElements('certificate').isNotEmpty
                   ? item.findElements('certificate').first.innerText
                   : '',
+              // 훈련과정 상세 페이지 URL (탭 시 이동)
               'titleLink': item.findElements('titleLink').isNotEmpty
                   ? item.findElements('titleLink').first.innerText
                   : '',
@@ -172,7 +192,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
     }
   }
 
-  // URL 열기
+  // 외부 URL 열기 (훈련과정 상세 페이지)
   Future<void> _launchUrl(String url) async {
     if (url.isEmpty) return;
     final uri = Uri.parse(url);
@@ -181,19 +201,19 @@ class _ProgramScreenState extends State<ProgramScreen> {
     }
   }
 
-  // 날짜 포맷 (20260430 → 2026.04.30)
+  // 날짜 포맷 변환 (20260430 → 2026.04.30)
   String formatDate(String date) {
     if (date.length != 8) return date;
     return '${date.substring(0, 4)}.${date.substring(4, 6)}.${date.substring(6, 8)}';
   }
 
-  // 오전/오후 변환
+  // 오전/오후 변환 (openTimeClcd: 1=오전, 2=오후)
   String formatTime(String clcd, String time) {
     final ampm = clcd == '1' ? '오전' : '오후';
     return '$ampm $time';
   }
 
-  // 수강비 포맷 (800000 → 800,000원)
+  // 수강비 포맷 변환 (800000 → 800,000원, 0 → 무료)
   String formatMoney(String money) {
     if (money.isEmpty || money == '0') return '무료';
     try {
@@ -205,7 +225,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
     }
   }
 
-  // 서브탭 위젯
+  // 서브탭 위젯 (취업 프로그램 / 내일배움카드 전환)
   Widget _buildSubTab(String title, int index) {
     final isSelected = _tabIndex == index;
     return Expanded(
@@ -215,6 +235,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             border: Border(
+              // 선택된 탭은 흰색 하단 보더 표시
               bottom: BorderSide(
                 color: isSelected ? Colors.white : Colors.transparent,
                 width: 2,
@@ -242,7 +263,9 @@ class _ProgramScreenState extends State<ProgramScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF3949AB),
         elevation: 0,
-        toolbarHeight: 0, // 타이틀 영역 숨김
+        // 타이틀 영역 숨김 (main_screen.dart의 공통 앱바 사용)
+        toolbarHeight: 0,
+        // 서브탭 (취업 프로그램 / 내일배움카드)
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Row(
@@ -250,23 +273,26 @@ class _ProgramScreenState extends State<ProgramScreen> {
           ),
         ),
       ),
+      // 선택된 탭에 따라 화면 전환
       body: _tabIndex == 0 ? _buildEmpPrograms() : _buildHrdCourses(),
     );
   }
 
-  // 취업역량 강화프로그램 목록
+  // 취업역량 강화프로그램 목록 화면
   Widget _buildEmpPrograms() {
     if (isLoadingEmp) {
       return const Center(
         child: CircularProgressIndicator(color: Color(0xFF3949AB)),
       );
     }
+    // 프로그램이 없을 때 안내 메시지
     if (empPrograms.isEmpty) {
       return const Center(
         child: Text('오늘 등록된 프로그램이 없습니다', style: TextStyle(color: Colors.grey)),
       );
     }
     return RefreshIndicator(
+      // 아래로 당기면 새로고침
       onRefresh: fetchEmpPrograms,
       color: const Color(0xFF3949AB),
       child: ListView.builder(
@@ -279,7 +305,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              // 왼쪽 컬러 보더
+              // 인디고 왼쪽 보더
               border: const Border(
                 left: BorderSide(color: Color(0xFF3949AB), width: 3),
               ),
@@ -296,7 +322,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 프로그램 유형 + 기관명
+                  // 프로그램 유형 태그 + 기관명
                   Row(
                     children: [
                       Container(
@@ -318,6 +344,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      // 기관명 (길면 말줄임표)
                       Expanded(
                         child: Text(
                           p['orgNm'],
@@ -340,7 +367,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // 대상자
+                  // 참여 대상자
                   if (p['pgmTarget'].isNotEmpty)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +390,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       ],
                     ),
                   const SizedBox(height: 4),
-                  // 날짜 + 시간
+                  // 날짜 + 시작시간
                   Row(
                     children: [
                       Icon(
@@ -383,7 +410,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  // 장소
+                  // 개최 장소
                   if (p['openPlcCont'].isNotEmpty)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,13 +441,14 @@ class _ProgramScreenState extends State<ProgramScreen> {
     );
   }
 
-  // 국민내일배움카드 훈련과정 목록
+  // 국민내일배움카드 훈련과정 목록 화면
   Widget _buildHrdCourses() {
     if (isLoadingHrd) {
       return const Center(
         child: CircularProgressIndicator(color: Color(0xFF3949AB)),
       );
     }
+    // 훈련과정이 없을 때 안내 메시지
     if (hrdCourses.isEmpty) {
       return const Center(
         child: Text('훈련과정이 없습니다', style: TextStyle(color: Colors.grey)),
@@ -439,7 +467,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              // 내일배움카드는 초록 왼쪽 보더
+              // 초록 왼쪽 보더 (내일배움카드 테마)
               border: const Border(
                 left: BorderSide(color: Color(0xFF00897B), width: 3),
               ),
@@ -452,6 +480,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
               ],
             ),
             child: InkWell(
+              // 카드 탭 시 훈련과정 상세 페이지로 이동
               onTap: () => _launchUrl(c['titleLink']),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
@@ -459,7 +488,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 훈련과정명
+                    // 훈련과정명 (길면 말줄임표)
                     Text(
                       c['title'],
                       style: const TextStyle(
@@ -479,7 +508,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // 자격증 연계
+                    // 관련 자격증 (있을 때만 표시)
                     if (c['certificate'].isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
@@ -525,7 +554,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                           ),
                         ),
                         const Spacer(),
-                        // 수강비
+                        // 수강비 (0원이면 무료로 표시)
                         Text(
                           formatMoney(c['realMan']),
                           style: const TextStyle(
@@ -556,7 +585,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // 주소
+                    // 훈련 지역
                     if (c['address'].isNotEmpty)
                       Row(
                         children: [

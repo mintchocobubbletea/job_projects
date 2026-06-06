@@ -1,3 +1,8 @@
+// account_screen.dart
+// 계정 설정 화면
+// 닉네임 변경, 비밀번호 변경, 로그아웃, 회원탈퇴 기능 제공
+// JWT 토큰을 Authorization 헤더에 포함하여 인증된 요청 전송
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -5,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_screen.dart';
 
 class AccountScreen extends StatefulWidget {
+  // 현재 로그인한 사용자의 닉네임
   final String username;
   const AccountScreen({super.key, required this.username});
 
@@ -13,11 +19,12 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
+  // 백엔드 서버 주소
   static const String _baseUrl = 'http://192.168.0.20:8000';
 
-  // 닉네임 변경 컨트롤러
+  // 닉네임 변경 입력 컨트롤러
   final TextEditingController _nicknameController = TextEditingController();
-  // 비밀번호 변경 컨트롤러
+  // 비밀번호 변경 입력 컨트롤러
   final TextEditingController _currentPwController = TextEditingController();
   final TextEditingController _newPwController = TextEditingController();
   final TextEditingController _newPwConfirmController = TextEditingController();
@@ -27,24 +34,26 @@ class _AccountScreenState extends State<AccountScreen> {
   bool _newPwHidden = true;
   bool _newPwConfirmHidden = true;
 
+  // API 요청 중 여부 (중복 요청 방지)
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // 현재 닉네임 초기값 설정
+    // 현재 닉네임을 입력창 초기값으로 설정
     _nicknameController.text = widget.username;
   }
 
-  // 로그아웃
+  // 로그아웃 처리
+  // SharedPreferences에서 토큰과 닉네임 삭제 후 로그인 화면으로 이동
   Future<void> _logout() async {
-    // 저장된 토큰과 닉네임 삭제
     final prefs = await SharedPreferences.getInstance();
+    // 저장된 토큰과 닉네임 삭제
     await prefs.remove('token');
     await prefs.remove('nickname');
 
     if (mounted) {
-      // 로그인 화면으로 이동
+      // 모든 이전 화면을 스택에서 제거하고 로그인 화면으로 이동
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const AuthScreen()),
@@ -112,8 +121,9 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  // 닉네임 변경
+  // 닉네임 변경 API 호출
   Future<void> _changeNickname() async {
+    // 입력값 유효성 검사
     if (_nicknameController.text.trim().isEmpty) {
       _showSnackBar('닉네임을 입력해주세요');
       return;
@@ -126,9 +136,12 @@ class _AccountScreenState extends State<AccountScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 저장된 JWT 토큰 조회
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
 
+      // 닉네임 변경 API 호출
+      // Authorization 헤더에 JWT 토큰 포함 (Bearer 방식)
       final response = await http.patch(
         Uri.parse('$_baseUrl/auth/nickname'),
         headers: {
@@ -141,7 +154,7 @@ class _AccountScreenState extends State<AccountScreen> {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
-        // 저장된 닉네임 업데이트
+        // 변경 성공 시 로컬 저장소의 닉네임도 업데이트
         await prefs.setString('nickname', _nicknameController.text.trim());
         _showSnackBar('닉네임이 변경됐습니다');
       } else {
@@ -154,8 +167,9 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  // 비밀번호 변경
+  // 비밀번호 변경 API 호출
   Future<void> _changePassword() async {
+    // 입력값 유효성 검사
     if (_currentPwController.text.isEmpty ||
         _newPwController.text.isEmpty ||
         _newPwConfirmController.text.isEmpty) {
@@ -166,6 +180,7 @@ class _AccountScreenState extends State<AccountScreen> {
       _showSnackBar('새 비밀번호는 6글자 이상이어야 해요');
       return;
     }
+    // 새 비밀번호 확인 일치 여부 검사
     if (_newPwController.text != _newPwConfirmController.text) {
       _showSnackBar('새 비밀번호가 일치하지 않습니다');
       return;
@@ -177,6 +192,7 @@ class _AccountScreenState extends State<AccountScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
 
+      // 비밀번호 변경 API 호출
       final response = await http.patch(
         Uri.parse('$_baseUrl/auth/password'),
         headers: {
@@ -192,7 +208,7 @@ class _AccountScreenState extends State<AccountScreen> {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
-        // 입력창 초기화
+        // 변경 성공 시 입력창 초기화
         _currentPwController.clear();
         _newPwController.clear();
         _newPwConfirmController.clear();
@@ -207,7 +223,7 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  // 회원 탈퇴
+  // 회원탈퇴 API 호출
   Future<void> _deleteAccount() async {
     setState(() => _isLoading = true);
 
@@ -215,6 +231,7 @@ class _AccountScreenState extends State<AccountScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
 
+      // 회원탈퇴 API 호출
       final response = await http.delete(
         Uri.parse('$_baseUrl/auth/delete'),
         headers: {
@@ -224,7 +241,7 @@ class _AccountScreenState extends State<AccountScreen> {
       );
 
       if (response.statusCode == 200) {
-        // 저장된 토큰 삭제 후 로그인 화면으로
+        // 탈퇴 성공 시 로컬 저장소 토큰 삭제 후 로그인 화면으로 이동
         await prefs.remove('token');
         await prefs.remove('nickname');
 
@@ -245,7 +262,7 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  // 스낵바 표시
+  // 스낵바 표시 헬퍼 함수
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(
       context,
@@ -254,6 +271,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
   @override
   void dispose() {
+    // 화면 종료 시 모든 컨트롤러 해제 (메모리 누수 방지)
     _nicknameController.dispose();
     _currentPwController.dispose();
     _newPwController.dispose();
@@ -279,7 +297,7 @@ class _AccountScreenState extends State<AccountScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 프로필 카드
+            // 프로필 카드 (현재 닉네임 표시)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -289,7 +307,7 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
               child: Row(
                 children: [
-                  // 아바타
+                  // 닉네임 첫 글자로 아바타 생성
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: Colors.white.withValues(alpha: 0.2),
@@ -306,6 +324,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 현재 닉네임
                       Text(
                         widget.username,
                         style: const TextStyle(
@@ -316,7 +335,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        '구직 커뮤니티 회원',
+                        '취직하잡 회원',
                         style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
                     ],
@@ -326,7 +345,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 닉네임 변경 카드
+            // 닉네임 변경 섹션
             _buildSectionTitle('닉네임 변경'),
             const SizedBox(height: 8),
             Container(
@@ -347,7 +366,7 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
               child: Column(
                 children: [
-                  // 닉네임 입력창
+                  // 새 닉네임 입력창
                   TextField(
                     controller: _nicknameController,
                     decoration: InputDecoration(
@@ -369,6 +388,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // 닉네임 변경 버튼
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -389,7 +409,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 비밀번호 변경 카드
+            // 비밀번호 변경 섹션
             _buildSectionTitle('비밀번호 변경'),
             const SizedBox(height: 8),
             Container(
@@ -410,7 +430,7 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
               child: Column(
                 children: [
-                  // 현재 비밀번호
+                  // 현재 비밀번호 입력창 (본인 확인용)
                   _buildPwField(
                     controller: _currentPwController,
                     label: '현재 비밀번호',
@@ -419,7 +439,7 @@ class _AccountScreenState extends State<AccountScreen> {
                         setState(() => _currentPwHidden = !_currentPwHidden),
                   ),
                   const SizedBox(height: 12),
-                  // 새 비밀번호
+                  // 새 비밀번호 입력창
                   _buildPwField(
                     controller: _newPwController,
                     label: '새 비밀번호',
@@ -428,7 +448,7 @@ class _AccountScreenState extends State<AccountScreen> {
                         setState(() => _newPwHidden = !_newPwHidden),
                   ),
                   const SizedBox(height: 12),
-                  // 새 비밀번호 확인
+                  // 새 비밀번호 확인 입력창
                   _buildPwField(
                     controller: _newPwConfirmController,
                     label: '새 비밀번호 확인',
@@ -438,6 +458,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // 비밀번호 변경 버튼
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -504,6 +525,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
               ),
             ),
+            // 홈 버튼과의 간격
             const SizedBox(height: 80),
           ],
         ),
@@ -524,6 +546,7 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   // 비밀번호 입력창 위젯
+  // 숨김/표시 토글 버튼 포함
   Widget _buildPwField({
     required TextEditingController controller,
     required String label,
@@ -532,10 +555,12 @@ class _AccountScreenState extends State<AccountScreen> {
   }) {
     return TextField(
       controller: controller,
+      // isHidden이 true일 때 비밀번호 가리기
       obscureText: isHidden,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF00897B)),
+        // 숨김/표시 토글 버튼
         suffixIcon: IconButton(
           onPressed: onToggle,
           icon: Icon(

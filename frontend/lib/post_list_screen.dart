@@ -1,3 +1,8 @@
+// post_list_screen.dart
+// 게시글 목록 화면
+// 선택한 게시판의 게시글 목록을 표시
+// 게시글 탭 시 상세 화면으로 이동, 우측 하단 버튼으로 글쓰기 가능
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -5,8 +10,11 @@ import 'post_detail_screen.dart';
 import 'post_write_screen.dart';
 
 class PostListScreen extends StatefulWidget {
+  // 게시판 카테고리명 (백엔드 API 파라미터로 사용)
   final String category;
+  // 게시판 테마 색상
   final Color color;
+  // 로그인한 사용자의 닉네임
   final String username;
 
   const PostListScreen({
@@ -25,17 +33,21 @@ class _PostListScreenState extends State<PostListScreen> {
   List<dynamic> posts = [];
   bool isLoading = true;
 
+  // 백엔드 서버 주소
   static const String _baseUrl = 'http://192.168.0.20:8000';
 
   @override
   void initState() {
     super.initState();
+    // 화면 진입 시 게시글 목록 불러오기
     fetchPosts();
   }
 
-  // 게시글 목록 가져오기
+  // 게시글 목록 API 호출
   Future<void> fetchPosts() async {
     try {
+      // 카테고리별 게시글 목록 조회
+      // URI 인코딩으로 한글 카테고리명 처리
       final response = await http.get(
         Uri.parse('$_baseUrl/posts/${Uri.encodeComponent(widget.category)}'),
       );
@@ -58,6 +70,7 @@ class _PostListScreenState extends State<PostListScreen> {
       appBar: AppBar(
         backgroundColor: widget.color,
         elevation: 0,
+        // 뒤로가기 버튼 색상
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           widget.category,
@@ -67,10 +80,11 @@ class _PostListScreenState extends State<PostListScreen> {
           ),
         ),
       ),
-      // 글쓰기 버튼
+      // 우측 하단 글쓰기 버튼
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // 글쓰기 화면으로 이동 후 돌아오면 목록 새로고침
+          // 글쓰기 화면으로 이동
+          // 글쓰기 완료 후 돌아오면 목록 새로고침
           await Navigator.push(
             context,
             MaterialPageRoute(
@@ -81,16 +95,19 @@ class _PostListScreenState extends State<PostListScreen> {
               ),
             ),
           );
+          // 새 게시글 반영을 위해 목록 새로고침
           fetchPosts();
         },
         backgroundColor: widget.color,
         child: const Icon(Icons.edit_rounded, color: Colors.white),
       ),
       body: isLoading
+          // 로딩 중 스피너 표시
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF3949AB)),
             )
           : posts.isEmpty
+          // 게시글 없을 때 안내 메시지
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -113,7 +130,9 @@ class _PostListScreenState extends State<PostListScreen> {
                 ],
               ),
             )
+          // 게시글 목록 표시
           : RefreshIndicator(
+              // 아래로 당기면 새로고침
               onRefresh: fetchPosts,
               color: widget.color,
               child: ListView.builder(
@@ -126,6 +145,7 @@ class _PostListScreenState extends State<PostListScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
+                      // 게시판 테마 색상으로 왼쪽 보더
                       border: Border(
                         left: BorderSide(color: widget.color, width: 3),
                       ),
@@ -142,7 +162,7 @@ class _PostListScreenState extends State<PostListScreen> {
                         horizontal: 16,
                         vertical: 10,
                       ),
-                      // 게시글 제목
+                      // 게시글 제목 (길면 말줄임표)
                       title: Text(
                         post['title'],
                         style: const TextStyle(
@@ -152,11 +172,12 @@ class _PostListScreenState extends State<PostListScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      // 작성자, 날짜, 조회수
+                      // 작성자, 작성일, 조회수
                       subtitle: Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Row(
                           children: [
+                            // 작성자
                             Icon(
                               Icons.person_outline,
                               size: 13,
@@ -171,6 +192,7 @@ class _PostListScreenState extends State<PostListScreen> {
                               ),
                             ),
                             const SizedBox(width: 10),
+                            // 작성일
                             Icon(
                               Icons.access_time,
                               size: 13,
@@ -202,8 +224,8 @@ class _PostListScreenState extends State<PostListScreen> {
                           ],
                         ),
                       ),
+                      // 게시글 탭 시 상세 화면으로 이동
                       onTap: () async {
-                        // 게시글 상세 화면으로 이동
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -214,7 +236,7 @@ class _PostListScreenState extends State<PostListScreen> {
                             ),
                           ),
                         );
-                        // 돌아오면 목록 새로고침 (조회수 반영)
+                        // 돌아올 때 조회수 반영을 위해 목록 새로고침
                         fetchPosts();
                       },
                     ),

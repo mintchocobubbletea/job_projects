@@ -1,11 +1,20 @@
+// post_detail_screen.dart
+// 게시글 상세 화면
+// 게시글 본문과 댓글 목록을 표시
+// WebSocket을 통해 실시간으로 댓글 작성 및 수신
+// TCP 기반 WebSocket 프로토콜로 서버와 지속적인 연결 유지
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class PostDetailScreen extends StatefulWidget {
+  // 게시글 ID (상세 조회 API 파라미터로 사용)
   final int postId;
+  // 게시판 테마 색상
   final Color color;
+  // 로그인한 사용자의 닉네임
   final String username;
 
   const PostDetailScreen({
@@ -20,41 +29,53 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
-  // 게시글 데이터
+  // 게시글 상세 데이터
   Map<String, dynamic>? post;
-  // 댓글 목록
+  // 댓글 목록 (기존 댓글 + 실시간으로 수신된 댓글)
   List<dynamic> comments = [];
   bool isLoading = true;
 
   // 댓글 입력 컨트롤러
   final TextEditingController _commentController = TextEditingController();
+  // 스크롤 컨트롤러 (새 댓글 수신 시 자동 스크롤)
   final ScrollController _scrollController = ScrollController();
 
-  // WebSocket 채널 (실시간 댓글)
+  // WebSocket 채널
+  // TCP 기반 WebSocket으로 서버와 지속적인 연결 유지
+  // 같은 게시글을 보는 사용자들과 실시간 댓글 공유
   late WebSocketChannel _channel;
 
+  // 백엔드 서버 주소
   static const String _baseUrl = 'http://192.168.0.20:8000';
+  // WebSocket 서버 주소 (ws:// 프로토콜 사용)
   static const String _wsBase = 'ws://192.168.0.20:8000';
 
   @override
   void initState() {
     super.initState();
+    // 게시글 상세 데이터 불러오기
     fetchPost();
-    // WebSocket 연결 (실시간 댓글)
+
+    // WebSocket 연결
+    // URL: ws://서버주소/posts/ws/{게시글ID}/{닉네임}
     _channel = WebSocketChannel.connect(
       Uri.parse('$_wsBase/posts/ws/${widget.postId}/${widget.username}'),
     );
-    // 실시간 댓글 수신
+
+    // WebSocket 메시지 수신 리스너
+    // 서버에서 새 댓글이 오면 댓글 목록에 추가
     _channel.stream.listen((message) {
+      // JSON 형식으로 수신된 댓글 데이터 파싱
       final data = jsonDecode(message);
       setState(() {
         comments.add({
+          'id': data['id'],
           'author': data['author'],
           'content': data['content'],
           'created_at': data['created_at'],
         });
       });
-      // 새 댓글 오면 자동 스크롤
+      // 새 댓글 수신 시 자동으로 맨 아래로 스크롤
       Future.delayed(const Duration(milliseconds: 100), () {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
@@ -67,7 +88,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     });
   }
 
-  // 게시글 상세 데이터 가져오기
+  // 게시글 상세 데이터 API 호출
   Future<void> fetchPost() async {
     try {
       final response = await http.get(
@@ -77,7 +98,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         setState(() {
           post = data;
-          // 기존 댓글 목록 설정
+          // 기존 댓글 목록 설정 (이전에 작성된 댓글들)
           comments = data['comments'] ?? [];
           isLoading = false;
         });
@@ -87,7 +108,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  // 댓글 전송 (WebSocket으로 실시간 전송)
+  // 댓글 전송 함수
+  // WebSocket을 통해 서버로 댓글 전송
+  // 서버에서 DB 저장 후 같은 게시글 보는 모든 사용자에게 브로드캐스트
   void _sendComment() {
     if (_commentController.text.trim().isEmpty) return;
     // WebSocket으로 댓글 내용 전송
@@ -95,20 +118,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     _commentController.clear();
   }
 
-  @override
-  void dispose() {
-    // 화면 나갈 때 WebSocket 연결 해제
-    _channel.sink.close();
-    _commentController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   // 신고 다이얼로그 표시
   void _showReportDialog({
-    required String reportType,
-    required int targetId,
-    required String targetAuthor,
+    required String reportType, // "post" 또는 "comment"
+    required int targetId, // 신고 대상 ID
+    required String targetAuthor, // 신고 대상 작성자
   }) {
     String selectedReason = '욕설/비방';
 
@@ -121,6 +135,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 신고 대상 작성자 표시
               Text(
                 '작성자: $targetAuthor',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
@@ -148,10 +163,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ],
           ),
           actions: [
+            // 취소 버튼
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('취소'),
             ),
+            // 신고 버튼
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
@@ -194,6 +211,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (mounted) {
+        // 신고 결과 스낵바로 표시
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -214,6 +232,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ).showSnackBar(const SnackBar(content: Text('서버에 연결할 수 없습니다')));
       }
     }
+  }
+
+  @override
+  void dispose() {
+    // 화면 이탈 시 WebSocket 연결 해제 (메모리 누수 방지)
+    _channel.sink.close();
+    _commentController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -238,7 +265,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             )
           : Column(
               children: [
-                // 게시글 + 댓글 목록
+                // 게시글 본문 + 댓글 목록 스크롤 영역
                 Expanded(
                   child: ListView(
                     controller: _scrollController,
@@ -264,11 +291,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 제목 + 신고 버튼
+                            // 제목 + 신고 버튼 행
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 제목
+                                // 게시글 제목
                                 Expanded(
                                   child: Text(
                                     post?['title'] ?? '',
@@ -278,7 +305,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                     ),
                                   ),
                                 ),
-                                // 신고 버튼 (내 게시글이 아닐 때만 표시)
+                                // 내 게시글이 아닐 때만 신고 버튼 표시
                                 if (post?['author'] != widget.username)
                                   GestureDetector(
                                     onTap: () => _showReportDialog(
@@ -298,9 +325,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            // 작성자 + 날짜 + 조회수
+                            // 작성자 + 작성일 + 조회수 행
                             Row(
                               children: [
+                                // 작성자
                                 Icon(
                                   Icons.person_outline,
                                   size: 13,
@@ -315,6 +343,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 10),
+                                // 작성일
                                 Icon(
                                   Icons.access_time,
                                   size: 13,
@@ -329,6 +358,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   ),
                                 ),
                                 const Spacer(),
+                                // 조회수
                                 Icon(
                                   Icons.visibility_outlined,
                                   size: 13,
@@ -345,7 +375,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               ],
                             ),
                             const Divider(height: 24),
-                            // 본문
+                            // 게시글 본문
                             Text(
                               post?['content'] ?? '',
                               style: const TextStyle(fontSize: 15, height: 1.7),
@@ -354,7 +384,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // 댓글 수
+                      // 댓글 수 표시
                       Text(
                         '댓글 ${comments.length}개',
                         style: TextStyle(
@@ -366,6 +396,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       const SizedBox(height: 8),
                       // 댓글 목록
                       ...comments.map((comment) {
+                        // 내 댓글 여부 확인
                         final isMe = comment['author'] == widget.username;
                         return Container(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -384,9 +415,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 댓글 작성자 + 날짜
+                              // 댓글 작성자 + 작성일 + 신고 버튼 행
                               Row(
                                 children: [
+                                  // 작성자 (내 댓글은 테마 색상, 상대방은 회색)
                                   Text(
                                     comment['author'],
                                     style: TextStyle(
@@ -398,6 +430,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                     ),
                                   ),
                                   const Spacer(),
+                                  // 작성일
                                   Text(
                                     comment['created_at'] ?? '',
                                     style: TextStyle(
@@ -439,7 +472,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ],
                   ),
                 ),
-                // 댓글 입력창
+                // 댓글 입력창 영역
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -458,6 +491,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   child: SafeArea(
                     child: Row(
                       children: [
+                        // 댓글 입력창
                         Expanded(
                           child: TextField(
                             controller: _commentController,
@@ -474,6 +508,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 vertical: 10,
                               ),
                             ),
+                            // 키보드 완료 버튼으로 댓글 전송
                             onSubmitted: (_) => _sendComment(),
                           ),
                         ),

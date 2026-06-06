@@ -1,7 +1,13 @@
+// auth_screen.dart
+// 로그인 및 회원가입 화면 파일
+// JWT 토큰 기반 인증 처리
+// 로그인 성공 시 토큰을 SharedPreferences에 저장하여 자동 로그인 구현
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'main_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -15,34 +21,35 @@ class _AuthScreenState extends State<AuthScreen> {
   // 현재 탭 (0: 로그인, 1: 회원가입)
   int _tabIndex = 0;
 
-  // 로그인 컨트롤러
+  // 로그인 입력 컨트롤러
   final TextEditingController _loginIdController = TextEditingController();
   final TextEditingController _loginPwController = TextEditingController();
 
-  // 회원가입 컨트롤러
+  // 회원가입 입력 컨트롤러
   final TextEditingController _regIdController = TextEditingController();
   final TextEditingController _regNicknameController = TextEditingController();
   final TextEditingController _regPwController = TextEditingController();
   final TextEditingController _regPwConfirmController = TextEditingController();
 
-  // 비밀번호 숨김 여부
+  // 비밀번호 숨김 여부 (true: 숨김, false: 표시)
   bool _loginPwHidden = true;
   bool _regPwHidden = true;
   bool _regPwConfirmHidden = true;
 
-  // 로딩 여부
-  bool _isLoading = false;
-
-  // 에러 메시지
-  String _errorMsg = '';
-
-  // 자동 로그인 여부
+  // 자동 로그인 여부 (기본값: true)
   bool _autoLogin = true;
 
-  // 서버 IP (실제 폰 연결 시 PC IP로 변경)
+  // API 요청 중 여부 (중복 요청 방지)
+  bool _isLoading = false;
+
+  // 에러 메시지 (입력값 오류 또는 서버 오류)
+  String _errorMsg = '';
+
+  // 백엔드 서버 주소
+  // 실제 폰 연결 시 PC의 로컬 IP 주소 사용
   static const String _baseUrl = 'http://192.168.0.20:8000';
 
-  // 로그인 함수
+  // 로그인 처리 함수
   Future<void> _login() async {
     // 입력값 유효성 검사
     if (_loginIdController.text.isEmpty || _loginPwController.text.isEmpty) {
@@ -66,23 +73,19 @@ class _AuthScreenState extends State<AuthScreen> {
         }),
       );
 
+      // 응답 데이터 파싱 (UTF-8 디코딩으로 한글 처리)
       final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
-        // 로그인 성공 시 토큰과 닉네임 저장
-        final prefs = await SharedPreferences.getInstance();
+        // 자동 로그인 체크 시 토큰과 닉네임을 로컬 저장소에 저장
         if (_autoLogin) {
-          // 자동 로그인 체크 시 토큰 저장
+          final prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', data['token']);
           await prefs.setString('nickname', data['nickname']);
-        } else {
-          // 자동 로그인 미체크 시 토큰 삭제
-          await prefs.remove('token');
-          await prefs.remove('nickname');
         }
 
         if (mounted) {
-          // 메인 화면으로 이동
+          // 로그인 성공 시 메인 화면으로 이동
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -91,17 +94,19 @@ class _AuthScreenState extends State<AuthScreen> {
           );
         }
       } else {
-        // 로그인 실패 시 에러 메시지 표시
+        // 로그인 실패 시 서버에서 받은 에러 메시지 표시
         setState(() => _errorMsg = data['detail'] ?? '로그인에 실패했습니다');
       }
     } catch (e) {
+      // 네트워크 오류 등 예외 처리
       setState(() => _errorMsg = '서버에 연결할 수 없습니다');
     } finally {
+      // 로딩 상태 해제
       setState(() => _isLoading = false);
     }
   }
 
-  // 회원가입 함수
+  // 회원가입 처리 함수
   Future<void> _register() async {
     // 입력값 유효성 검사
     if (_regIdController.text.isEmpty ||
@@ -122,6 +127,7 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _errorMsg = '비밀번호는 6글자 이상이어야 해요');
       return;
     }
+    // 비밀번호 확인 일치 여부 검사
     if (_regPwController.text != _regPwConfirmController.text) {
       setState(() => _errorMsg = '비밀번호가 일치하지 않습니다');
       return;
@@ -147,7 +153,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
-        // 회원가입 성공 시 토큰과 닉네임 저장
+        // 회원가입 성공 시 토큰과 닉네임 저장 후 메인 화면으로 이동
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setString('nickname', data['nickname']);
@@ -172,6 +178,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    // 화면 종료 시 모든 컨트롤러 해제 (메모리 누수 방지)
     _loginIdController.dispose();
     _loginPwController.dispose();
     _regIdController.dispose();
@@ -186,6 +193,7 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Container(
+        // 인디고 그라데이션 배경
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -195,6 +203,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
+            // 키보드 올라올 때 스크롤 가능하게
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 minHeight:
@@ -207,7 +216,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // 앱 로고
+                    // 앱 로고 아이콘
                     Container(
                       width: 72,
                       height: 72,
@@ -224,7 +233,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 16),
                     // 앱 이름
                     const Text(
-                      '구직 커뮤니티',
+                      '취직하잡',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 28,
@@ -232,6 +241,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    // 앱 설명
                     const Text(
                       '취업 정보를 함께 나눠요',
                       style: TextStyle(color: Colors.white70, fontSize: 14),
@@ -252,14 +262,14 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       child: Column(
                         children: [
-                          // 탭 버튼
+                          // 로그인/회원가입 탭 버튼
                           Row(
                             children: [
                               _buildTabButton('로그인', 0),
                               _buildTabButton('회원가입', 1),
                             ],
                           ),
-                          // 탭 내용
+                          // 탭에 따른 폼 표시
                           Padding(
                             padding: const EdgeInsets.all(24),
                             child: _tabIndex == 0
@@ -273,7 +283,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     // 개인정보처리방침 링크
                     GestureDetector(
                       onTap: () async {
-                        // 개인정보처리방침 페이지 열기
+                        final url = Uri.parse(
+                          'https://mintchocobubbletea.github.io/job_projects/privacy_policy.html',
+                        );
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(
+                            url,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
                       },
                       child: const Text(
                         '개인정보처리방침',
@@ -295,19 +313,19 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // 탭 버튼 위젯
+  // 탭 버튼 위젯 (로그인/회원가입 전환)
   Widget _buildTabButton(String title, int index) {
     final isSelected = _tabIndex == index;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() {
           _tabIndex = index;
-          _errorMsg = '';
+          _errorMsg = ''; // 탭 전환 시 에러 메시지 초기화
         }),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            // 선택된 탭은 인디고 배경
+            // 선택된 탭은 인디고, 미선택 탭은 회색
             color: isSelected ? const Color(0xFF3949AB) : Colors.grey.shade100,
             borderRadius: BorderRadius.only(
               topLeft: index == 0 ? const Radius.circular(20) : Radius.zero,
@@ -328,12 +346,12 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // 로그인 폼
+  // 로그인 폼 위젯
   Widget _buildLoginForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 아이디 입력
+        // 아이디 입력창
         _buildTextField(
           controller: _loginIdController,
           label: '아이디',
@@ -341,7 +359,7 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.person_outline,
         ),
         const SizedBox(height: 12),
-        // 비밀번호 입력
+        // 비밀번호 입력창
         _buildTextField(
           controller: _loginPwController,
           label: '비밀번호',
@@ -352,7 +370,6 @@ class _AuthScreenState extends State<AuthScreen> {
           onToggleHidden: () =>
               setState(() => _loginPwHidden = !_loginPwHidden),
         ),
-        // 비밀번호 입력 아래에 추가
         const SizedBox(height: 8),
         // 자동 로그인 체크박스
         Row(
@@ -377,7 +394,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ],
         ),
-        // 에러 메시지
+        // 에러 메시지 표시
         if (_errorMsg.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(
@@ -419,12 +436,12 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // 회원가입 폼
+  // 회원가입 폼 위젯
   Widget _buildRegisterForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 아이디 입력
+        // 아이디 입력창 (4글자 이상)
         _buildTextField(
           controller: _regIdController,
           label: '아이디',
@@ -432,7 +449,7 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.person_outline,
         ),
         const SizedBox(height: 12),
-        // 닉네임 입력
+        // 닉네임 입력창 (커뮤니티에서 표시될 이름)
         _buildTextField(
           controller: _regNicknameController,
           label: '닉네임',
@@ -440,7 +457,7 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.badge_outlined,
         ),
         const SizedBox(height: 12),
-        // 비밀번호 입력
+        // 비밀번호 입력창 (6글자 이상)
         _buildTextField(
           controller: _regPwController,
           label: '비밀번호',
@@ -451,7 +468,7 @@ class _AuthScreenState extends State<AuthScreen> {
           onToggleHidden: () => setState(() => _regPwHidden = !_regPwHidden),
         ),
         const SizedBox(height: 12),
-        // 비밀번호 확인
+        // 비밀번호 확인 입력창
         _buildTextField(
           controller: _regPwConfirmController,
           label: '비밀번호 확인',
@@ -462,7 +479,7 @@ class _AuthScreenState extends State<AuthScreen> {
           onToggleHidden: () =>
               setState(() => _regPwConfirmHidden = !_regPwConfirmHidden),
         ),
-        // 에러 메시지
+        // 에러 메시지 표시
         if (_errorMsg.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(
@@ -504,19 +521,20 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // 공통 텍스트 필드 위젯
+  // 공통 텍스트 입력창 위젯
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required String hint,
     required IconData icon,
-    bool isPassword = false,
-    bool isHidden = false,
-    VoidCallback? onToggleHidden,
+    bool isPassword = false, // 비밀번호 필드 여부
+    bool isHidden = false, // 비밀번호 숨김 여부
+    VoidCallback? onToggleHidden, // 숨김/표시 토글 콜백
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 필드 라벨
         Text(
           label,
           style: const TextStyle(
@@ -528,12 +546,14 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 6),
         TextField(
           controller: controller,
+          // 비밀번호 필드이고 숨김 상태일 때 텍스트 가리기
           obscureText: isPassword && isHidden,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            // 좌측 아이콘
             prefixIcon: Icon(icon, color: const Color(0xFF3949AB), size: 20),
-            // 비밀번호 숨김/표시 토글 버튼
+            // 비밀번호 필드일 때 우측 토글 버튼 표시
             suffixIcon: isPassword
                 ? IconButton(
                     onPressed: onToggleHidden,
@@ -554,6 +574,7 @@ class _AuthScreenState extends State<AuthScreen> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade200),
             ),
+            // 포커스 시 인디고 테두리
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFF3949AB), width: 2),
@@ -563,7 +584,7 @@ class _AuthScreenState extends State<AuthScreen> {
               vertical: 14,
             ),
           ),
-          // 키보드에서 완료 누르면 제출
+          // 키보드 완료 버튼으로 제출
           onSubmitted: (_) => _tabIndex == 0 ? _login() : _register(),
         ),
       ],
